@@ -20,7 +20,7 @@
 
 
 (* ::Input::Initialization:: *)
-xAct`SpinFrames`$Version={"0.5.4",{2025,05,12}}
+xAct`SpinFrames`$Version={"0.5.5",{2025,06,08}}
 
 
 (* ::Input::Initialization:: *)
@@ -49,7 +49,7 @@ You should have received a copy of the GNU General Public License along with thi
   
 (* :Context: xAct`SpinFrames` *)
 
-(* :Package Version: 0.5.4 *)
+(* :Package Version: 0.5.5 *)
 
 (* :Copyright: Thomas B\[ADoubleDot]ckdahl and Steffen Aksteiner (2014-2025) *)
 
@@ -154,6 +154,13 @@ DyadComponentByNumberSymmetric::usage="DyadComponentByNumberSymmetric[T,{i,j},dy
 AllDyadComponentsSymmetric::usage="AllDyadComponentsSymmetric[T,dyad] gives all dyad components of the symmetric spinor T.";
 SetGHPWeightAndFormatSymmetric::usage="SetGHPWeightAndFormatSymmetric[T,dyad] Set the GHPWeights and formating for the symmetric spinor T.";
 GHPPrime::usage="GHPPrime[expr,dyad] gives the primed version of expr with respect to dyad. Observe that DefSpinDyad is needed for this to work.";
+GHPMatrixOp::usage="GHPMatrixOp[mat] represents mat as a matrix of operators acting on weighted scalars.";
+ComponentMatrix::usage="ComponentMatrix[mat] represents mat as a matrix of components.";
+DummyWS::usage="DummyWS[p,q][] represents a scalar with GHP weights (p,q). Per default it has an empty string as PrintAs.";
+EqListToGHPMatrixEq::usage="EqListToGHPMatrixEq[eqlist, varlist] transforms a list of component equations to matrix operator form.";
+GHPMatrixOpRule::usage="GHPMatrixOpRule is a rule that expands a GHPMatrixOp operator.";
+ComponentMatrixToList::usage="ComponentMatrixToList is a rule that transforms a ComponentMatrix object to a list.";
+ComponentMatrixEqToList::usage="ComponentMatrixEqToList[ComponentMatrix[A]==ComponentMatrix[B]] transforms the expression into a corresponding list of equations.";
 
 
 (* ::Input::Initialization:: *)
@@ -1244,6 +1251,74 @@ xAct`xTensor`Private`interpretbox[InertScalarOp[x,func][expr],RowBox[{"(",MakeBo
 
 (* ::Input::Initialization:: *)
 GHPWeightOf[y:InertScalarOp[x_,func_][expr_]]:=GHPWeightOf[Evaluate[y/.InertScalarOp->Function]]
+
+
+(* ::Input::Initialization:: *)
+MakeBoxes[ComponentMatrix[matrix_List],StandardForm]:=xAct`xTensor`Private`interpretbox[ComponentMatrix[matrix],RowBox[{"(",Map[MakeBoxes[#,StandardForm]&,GridBox[matrix],{3}],")"}]]
+
+
+(* ::Input::Initialization:: *)
+Tex[ComponentMatrix[matrix_List]]:=TexBMatrix[matrix];
+
+
+(* ::Input::Initialization:: *)
+Plus[ComponentMatrix[a_],ComponentMatrix[b_]]^:=ComponentMatrix[a+b];
+ComponentMatrix[zeromat:{Repeated[{0}]}]+GHPMatrixOp[opmat_][expr_]^:=GHPMatrixOp[opmat][expr]/;(Length[zeromat]==Length[opmat]);
+
+
+(* ::Input::Initialization:: *)
+xTensorQ[DummyWS[p_,q_]]^=True;
+SlotsOfTensor[DummyWS[p_,q_]]^={};
+SymmetryGroupOfTensor[DummyWS[p_,q_]]^=StrongGenSet[{},GenSet[]];
+GHPWeightOf[DummyWS[p_,q_][]]^:={p,q};
+Dagger[DummyWS[p_,q_]]^:=DummyWS[q,p];
+PrintAs[DummyWS[p_,q_]]^="";
+Tex[DummyWS[p_,q_]]^="";
+
+
+(* ::Input::Initialization:: *)
+ToDummyWS[(TT_?xTensorQ)[inds___]]:=With[{p=GHPWeightOf[TT[inds]][[1]],q=GHPWeightOf[TT[inds]][[2]]},TT[inds]->DummyWS[p,q][]];
+
+
+(* ::Input::Initialization:: *)
+ToDummyWS[(c_?ConstantQ)*(TT_?xTensorQ)[inds___]]:=With[{p=GHPWeightOf[TT[inds]][[1]],q=GHPWeightOf[TT[inds]][[2]]},TT[inds]->DummyWS[p,q][]/c];
+
+
+(* ::Input::Initialization:: *)
+FromDummyWS[(TT_?xTensorQ)[inds___]]:=With[{p=GHPWeightOf[TT[inds]][[1]],q=GHPWeightOf[TT[inds]][[2]]},DummyWS[p,q][]->TT[inds]];
+
+
+(* ::Input::Initialization:: *)
+FromDummyWS[(c_?ConstantQ)*(TT_?xTensorQ)[inds___]]:=With[{p=GHPWeightOf[TT[inds]][[1]],q=GHPWeightOf[TT[inds]][[2]]},DummyWS[p,q][]->c*TT[inds]];
+
+
+(* ::Input::Initialization:: *)
+GHPMatrixOpRule=GHPMatrixOp[opmatrix_List][ComponentMatrix[tmatrix_List]]:>Module[{},ComponentMatrix@Inner[#1/.FromDummyWS[#2]&,opmatrix,tmatrix,Plus]];
+
+
+(* ::Input::Initialization:: *)
+VariableToZero[(TT_?xTensorQ)[inds___]]:=TT[inds]->0;
+VariableToZero[(c_?ConstantQ)*(TT_?xTensorQ)[inds___]]:=TT[inds]->0;
+
+
+(* ::Input::Initialization:: *)
+EqListToGHPMatrixEq[eqlist_List,vars_List]:=With[{expandedeqs=Expand@eqlist},ComponentMatrix[Transpose[{(First/@expandedeqs)}]]==With[{main=GHPMatrixOp[Outer[((#1[[2]]-(#1[[2]]/.VariableToZero[#2]))/.ToDummyWS[#2])&,expandedeqs,vars]]@ComponentMatrix[Transpose[{vars}]]},main+ComponentMatrix[(Last/@expandedeqs)-First[main/.GHPMatrixOpRule]]]]
+
+
+(* ::Input::Initialization:: *)
+MakeBoxes[GHPMatrixOp[matrix_List],StandardForm]:=xAct`xTensor`Private`interpretbox[GHPMatrixOp[matrix],RowBox[{"(",Map[MakeBoxes[#,StandardForm]&,GridBox[matrix],{3}],")"}]]
+
+
+(* ::Input::Initialization:: *)
+Tex[GHPMatrixOp[matrix_List][expr_]]:=StringJoin[TexBMatrix[matrix],Tex[expr]];
+
+
+(* ::Input::Initialization:: *)
+ComponentMatrixToList=ComponentMatrix[tmatrix_List]:>tmatrix;
+
+
+(* ::Input::Initialization:: *)
+ComponentMatrixEqToList[expr_Equal]:=Expand[Flatten[Thread/@Thread[expr/.ComponentMatrixToList]]];
 
 
 (* ::Input::Initialization:: *)

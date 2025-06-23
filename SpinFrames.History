@@ -29,3 +29,4 @@
 2025
 8 May - Added GHPWeightOf for the tetrad and dyad.
 9 May - Introduced GHPPrime
+8 June - Added section 6.2 to handle matrix operators acting on weighted scalars.
