@@ -30,3 +30,5 @@
 8 May - Added GHPWeightOf for the tetrad and dyad.
 9 May - Introduced GHPPrime
 8 June - Added section 6.2 to handle matrix operators acting on weighted scalars.
+13 November - Added options IndexFormattingFunction and IndexTexFunction to DefSpinDyad.
+23 December - Added DyadIndexFormattingFunction and DyadIndexTexFunction to connect the corresponding options to the correct dyads.
